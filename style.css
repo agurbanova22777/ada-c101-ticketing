@@ -190,6 +190,11 @@ button.seat:hover {
     color: #FFFFFF;
 }
 
+button.seat.selected {
+    background: var(--accent);
+    color: #FFFFFF;
+}
+
 button.seat:focus-visible {
     outline: 2px solid var(--ink);
     outline-offset: 2px;

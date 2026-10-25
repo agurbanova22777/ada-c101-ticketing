@@ -84,4 +84,30 @@ function renderSeats() {
 
 renderSeats();
 
+const detailSection = document.getElementById("detail-section");
+const detailRow = document.getElementById("detail-row");
+const detailSeat = document.getElementById("detail-seat");
+const detailPrice = document.getElementById("detail-price");
+
+let selectedButton = null;
+
+// One listener on the map handles clicks on every seat.
+seatMap.addEventListener("click", function (event) {
+    const button = event.target.closest("button.seat");
+    if (!button) return;
+
+    const seat = seats.find(s => s.id === button.dataset.seatId);
+
+    // Highlight only the clicked seat
+    if (selectedButton) selectedButton.classList.remove("selected");
+    selectedButton = button;
+    button.classList.add("selected");
+
+    // Show its info in the Seat Details panel
+    detailSection.textContent = seat.sectionName;
+    detailRow.textContent = seat.row;
+    detailSeat.textContent = seat.seatNumber;
+    detailPrice.textContent = seat.price + " AZN";
+});
+
 console.log("Total seats:", seats.length); // should be 250
