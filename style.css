@@ -171,6 +171,8 @@ button:focus-visible {
     letter-spacing: 0.16em;
 }
 
+/* Seats and their states: available (default), inspected, in cart, unavailable */
+
 button.seat {
     position: absolute;
     width: 20px;
@@ -190,14 +192,31 @@ button.seat:hover {
     color: #FFFFFF;
 }
 
-button.seat.selected {
-    background: var(--accent);
-    color: #FFFFFF;
-}
-
 button.seat:focus-visible {
     outline: 2px solid var(--ink);
     outline-offset: 2px;
+}
+
+/* Inspected seat: a ring around it, so its state color stays visible */
+button.seat.selected {
+    background: var(--accent);
+    color: #FFFFFF;
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+}
+
+button.seat.in-cart {
+    background: #6B8F71;
+    border-color: #4F6F55;
+    color: #FFFFFF;
+}
+
+button.seat.unavailable,
+button.seat.unavailable:hover {
+    background: #D5CCC4;
+    border-color: #A39A93;
+    color: #8A817B;
+    cursor: not-allowed;
 }
 
 .map-note {
@@ -269,6 +288,16 @@ button:disabled {
 
 .cart-items {
     margin-top: 16px;
+}
+
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 14px;
 }
 
 .cart-summary {

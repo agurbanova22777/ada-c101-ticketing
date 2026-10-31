@@ -13,6 +13,8 @@ const ROW_GAP = 26;   // distance between rows
 const WIDTH = 820;    // map width in px
 const startRadius = { lower: 420, upper: 522 }; // radius of the first row of each level
 
+/* ---------- Build the seat data ---------- */
+
 const seats = [];
 let seatNumber = 1;
 
@@ -41,7 +43,7 @@ let seatNumber = 1;
                     level: level,
                     row: row + 1,
                     price: section.price,
-                    status: "available",
+                    status: "available", // "available", "in-cart" or "unavailable"
                     angle: angle,
                     x: radius * Math.sin(angle),
                     y: radius * Math.cos(angle)
@@ -52,6 +54,13 @@ let seatNumber = 1;
         });
     }
 });
+
+// Mark every 13th seat as taken, so we can test the "unavailable" case
+seats.forEach(function (seat) {
+    if (seat.seatNumber % 13 === 0) seat.status = "unavailable";
+});
+
+/* ---------- Draw the map ---------- */
 
 const seatMap = document.getElementById("seat-map");
 const stage = document.querySelector(".stage");
@@ -68,6 +77,7 @@ function renderSeats() {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "seat";
+        button.classList.add(seat.status); // "available", "in-cart" or "unavailable"
         button.textContent = seat.seatNumber;
         button.title = `${seat.sectionName}, Row ${seat.row}, Seat ${seat.seatNumber} — ${seat.price} AZN`;
         button.setAttribute("aria-label",
@@ -84,30 +94,130 @@ function renderSeats() {
 
 renderSeats();
 
+/* ---------- Seat details and cart ---------- */
+
 const detailSection = document.getElementById("detail-section");
 const detailRow = document.getElementById("detail-row");
 const detailSeat = document.getElementById("detail-seat");
 const detailPrice = document.getElementById("detail-price");
+const addButton = document.getElementById("add-to-cart");
+const cartItems = document.getElementById("cart-items");
+const cartCount = document.getElementById("cart-count");
+const cartTotal = document.getElementById("cart-total");
 
-let selectedButton = null;
+let inspectedSeat = null;   // the seat being looked at (not in the cart yet)
+let selectedButton = null;  // its button on the map
+const cart = [];            // seats that were added with "Add to Cart"
 
-// One listener on the map handles clicks on every seat.
+// Update one seat's button so it matches seat.status
+function updateSeatButton(seat) {
+    const button = seatMap.querySelector(`[data-seat-id="${seat.id}"]`);
+    button.classList.remove("available", "in-cart", "unavailable");
+    button.classList.add(seat.status);
+}
+
+// Decide if the Add to Cart button is usable for the inspected seat
+function updateAddButton() {
+    if (!inspectedSeat) {
+        addButton.disabled = true;
+        addButton.textContent = "Add to Cart";
+    } else if (inspectedSeat.status === "in-cart") {
+        addButton.disabled = true;
+        addButton.textContent = "Already in Cart";
+    } else if (inspectedSeat.status === "unavailable") {
+        addButton.disabled = true;
+        addButton.textContent = "Unavailable";
+    } else {
+        addButton.disabled = false;
+        addButton.textContent = "Add to Cart";
+    }
+}
+
+// Rebuild the cart panel from the cart array
+function renderCart() {
+    cartItems.innerHTML = "";
+
+    if (cart.length === 0) {
+        cartItems.innerHTML = "<p>Your cart is empty.</p>";
+    }
+
+    cart.forEach(function (seat) {
+        const item = document.createElement("div");
+        item.className = "cart-item";
+        item.innerHTML =
+            `<span>${seat.sectionName}, Row ${seat.row}, Seat ${seat.seatNumber}</span>` +
+            `<strong>${seat.price} AZN</strong>`;
+        cartItems.appendChild(item);
+    });
+
+    const total = cart.reduce(function (sum, seat) {
+        return sum + seat.price;
+    }, 0);
+
+    cartCount.textContent = cart.length;
+    cartTotal.textContent = total + " AZN";
+    saveCart();
+}
+
+// Clicking a seat only INSPECTS it. The cart is not changed here.
 seatMap.addEventListener("click", function (event) {
     const button = event.target.closest("button.seat");
     if (!button) return;
 
-    const seat = seats.find(s => s.id === button.dataset.seatId);
+    inspectedSeat = seats.find(s => s.id === button.dataset.seatId);
 
-    // Highlight only the clicked seat
     if (selectedButton) selectedButton.classList.remove("selected");
     selectedButton = button;
     button.classList.add("selected");
 
-    // Show its info in the Seat Details panel
-    detailSection.textContent = seat.sectionName;
-    detailRow.textContent = seat.row;
-    detailSeat.textContent = seat.seatNumber;
-    detailPrice.textContent = seat.price + " AZN";
+    detailSection.textContent = inspectedSeat.sectionName;
+    detailRow.textContent = inspectedSeat.row;
+    detailSeat.textContent = inspectedSeat.seatNumber;
+    detailPrice.textContent = inspectedSeat.price + " AZN";
+
+    updateAddButton();
 });
 
+// Only this button adds a ticket to the cart
+addButton.addEventListener("click", function () {
+    if (!inspectedSeat) return;
+
+    // Blocks unavailable seats and duplicates
+    if (inspectedSeat.status !== "available" || cart.includes(inspectedSeat)) return;
+
+    inspectedSeat.status = "in-cart";
+    cart.push(inspectedSeat);
+
+    updateSeatButton(inspectedSeat);
+    updateAddButton();
+    renderCart();
+});
+
+loadCart();
+renderCart();
 console.log("Total seats:", seats.length); // should be 250
+
+// Save only the seat ids. Prices and details come back from the seats array.
+function saveCart() {
+    localStorage.setItem("cart", JSON.stringify(cart.map(seat => seat.id)));
+}
+
+// Restore the cart and the matching seat states after a refresh
+function loadCart() {
+    try {
+        const ids = JSON.parse(localStorage.getItem("cart")) || [];
+
+        ids.forEach(function (id) {
+            const seat = seats.find(s => s.id === id);
+
+            // Skip ids that no longer exist, unavailable seats and duplicates
+            if (!seat || seat.status !== "available") return;
+
+            seat.status = "in-cart";
+            cart.push(seat);
+            updateSeatButton(seat);
+        });
+    } catch (error) {
+        localStorage.removeItem("cart"); // saved data was corrupted, so start fresh
+    }
+}
